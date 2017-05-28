@@ -1,0 +1,131 @@
+package webscraber;
+
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Stack;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.jsoup.nodes.Document;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+/**
+ *
+ * @author Shmuel
+ */
+public class WebScraper extends Thread {
+
+    String url = "https://www.touro.edu/";
+
+    static HashSet<String> websitesSet = new HashSet<>();
+    Stack<String> websitesToScanStack = new Stack<>();
+
+    static HashSet<String> emailsEntered = new HashSet<>();
+    static boolean isOver = false;
+
+    @Override
+    public void run() {
+        String urlToParse = null;
+        while (emailsEntered.size() < 20) {
+            System.out.println(Thread.currentThread().getName() + " " + websitesToScanStack.size() + " size of websites to scan list \n");
+            synchronized ("mutex") {
+                System.out.println("");
+                if (websitesSet.isEmpty()) {
+                    websitesToScanStack.push(url);
+                }
+                if (websitesToScanStack.isEmpty() && !isOver) {
+                    try {
+                        System.out.println("webStackEmpty");
+                        "mutex".wait(1000);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(WebScraper.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                } else {
+
+                    urlToParse = getUrlToParse();
+                    System.out.println(urlToParse);
+
+                    try {
+                        parseUrlAndWebsite(urlToParse);
+
+                    } catch (IOException ex) {
+                        System.out.println(urlToParse + " is invalid");
+                    }
+
+                }
+            }
+        }
+        System.out.println(emailsEntered.size() + " emails entered size");
+        System.out.println("done");
+        isOver = true;
+
+    }
+
+    public void parseUrlAndWebsite(String urlToParse) throws IOException {
+
+        Document doc = Jsoup.connect(urlToParse).get();
+        Elements links = doc.select("a[href]");
+        if (emailsEntered.add(urlToParse)) {
+            System.out.println("I Thread" + Thread.currentThread().getId() + " Parsing " + urlToParse);
+
+            for (Element link : links) {
+                synchronized ("lock2") {
+                    if (websitesSet.add(link.attr("abs:href"))) {
+
+                        System.out.println("I Thread " + Thread.currentThread().getId() + " Adding url" + link.attr("abs:href"));
+                        System.out.println("");
+                        websitesToScanStack.push(link.attr("abs:href"));
+
+                    }
+                }
+                Pattern p = Pattern.compile("[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+");
+                Elements elmentos = doc.getAllElements();
+                for (Element e : elmentos) {
+                    Matcher matcher = p.matcher(e.ownText());
+                    while (matcher.find()) {
+                        synchronized ("lock3") {
+                            System.out.println("Adding email" + emailsEntered.add(matcher.group()));
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
+    private String getUrlToParse() {
+        return websitesToScanStack.pop();
+    }
+
+    public static void main(String[] args) throws IOException {
+        int numThreads = 10;
+        WebScraper[] webS = new WebScraper[numThreads];
+
+        for (int i = 0; i < numThreads; i++) {
+            WebScraper ws = new WebScraper();
+            webS[i] = ws;
+            webS[0] = ws;
+            ws.start();
+        }
+        System.out.println("finished collectiong emails started adding to database");
+        for (int i = 0; i < numThreads; i++) {
+            try {
+                webS[i].join();
+
+            } catch (InterruptedException ex) {
+                Logger.getLogger(WebScraper.class.getName()).log(Level.SEVERE, null, ex);
+
+            }
+        }
+        for (String webS1 : emailsEntered) {
+            System.out.println(webS1);
+        }
+       WebScraperDatabase.databaseEmails(emailsEntered);
+        System.exit(0);
+    }
+}
