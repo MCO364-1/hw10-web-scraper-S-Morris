@@ -1,0 +1,58 @@
+package webscraber;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.HashSet;
+import java.util.List;
+
+/**
+ *
+ * @author Shmuel
+ */
+public class WebScraperDatabase {
+
+    public static void databaseEmails(HashSet<String> emailsEntered) {
+        try {
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            System.out.println("Driver Successfully Loaded!");
+            String driver = "jdbc:sqlserver:";
+            String url = "//lcmdb.cbjmpwcdjfmq.us-east-1.rds.amazonaws.com:";
+            String port = "1433";
+            String username = "DS5";
+            String password = "Touro123";
+            String database = "DS5";
+            String connection = driver + url + port
+                    + ";databaseName=" + database + ";user=" + username + ";password=" + password + ";";
+            try (Connection connect = DriverManager.getConnection(connection)) {
+                
+                for (String email1 : emailsEntered) {
+                    System.out.println("Connected to Database!");
+                    
+                Statement state = connect.createStatement();
+                state.executeUpdate("INSERT INTO Email_Data Values('" + email1 + "')");
+               
+                 System.out.println("Query Executed Successfully!");
+                
+                }
+                 connect.close();
+                
+
+                
+                
+            }
+            System.out.println("Database Closed!");
+        } catch (ClassNotFoundException ex) {
+            System.out.println("Error: Driver Class not found.");
+            ex.printStackTrace();
+        } catch (SQLException sqlex) {
+            System.out.println("Error: SQL Error");
+            sqlex.printStackTrace();
+
+        }
+
+    }
+}
